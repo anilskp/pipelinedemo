@@ -16,6 +16,6 @@ node {
    }
   
     stage ('Run Application') {
-    /*sh 'sh ./job-dsl/startscript.sh' */
+    sh 'sh ./job-dsl/startscript.sh' 
     }
 }
