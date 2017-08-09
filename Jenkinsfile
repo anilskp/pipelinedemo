@@ -8,7 +8,7 @@ node {
  
    stage('docker build/push') {
      docker.withRegistry('https://index.docker.io/v1/', 'dockerhub') {
-       def app = docker.build("anilskp/pipelinebuild", '.')
+       def app = docker.build("anilskp/pipelinedemo", '.')
     
        app.push("${commit_id}")
        app.push("latest")
