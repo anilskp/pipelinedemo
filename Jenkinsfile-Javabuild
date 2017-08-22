@@ -1,0 +1,46 @@
+node {
+    def libPath = "/var/jenkins_home/apachelib"
+    def http_proxy = "http://qr\\usr:pwd@proxy.XXXXXX.com:8080"
+	def tomcatdir = '/opt'
+	def dockerImageName = 'anilskp/myapp'
+	def app
+	def shortCommit
+	
+	script {
+		env.tomcatdir = '/opt'
+	}
+    
+    stage('Checkout and ANT Build') {
+     	docker.image('anilskp/qr-ant:1.0').inside {
+	        echo 'Git Checkout..'        
+	        checkout scm
+	        echo 'Build'
+	        sh "chmod -R 0755 ./"
+	        sh "ant -lib /opt -Dtomcatdir=/opt -file build.xml war"
+        }
+    }
+  
+    stage('Docker Build') {
+    	docker.withRegistry('https://registry.hub.docker.com', "dockerRepoCredentials") {
+	    	gitCommit = sh(returnStdout: true, script:'git rev-parse HEAD').trim()
+	    	shortCommit = gitCommit.take(9)
+	        app = docker.build("${dockerImageName}:${shortCommit}", "-q --pull --build-arg http_proxy=${http_proxy} --build-arg https_proxy=${http_proxy} docker")
+        }
+    }
+    stage('Docker Push') {
+    	echo "Docker Build number: ${env.BUILD_NUMBER}"
+        docker.withRegistry('https://registry.hub.docker.com', "dockerRepoCredentials") {
+            app.push()
+            app.push("latest")
+        }
+    }
+    stage('Cleanup Running Containers') {
+    	sh "docker service rm qramr || true"
+    }
+    stage('Deploy') {
+    	docker.withRegistry('https://registry.hub.docker.com', "dockerRepoCredentials") {
+			sh "docker service create --name myapp -p 5001:8080 --network amrdemonet ${dockerImageName}:${shortCommit}"
+		}
+    }
+    
+}
